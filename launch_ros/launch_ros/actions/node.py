@@ -208,6 +208,14 @@ class Node(ExecuteProcess):
                     "ros_specific_arguments['remaps'][{}]".format(i),
                     description='remapping {}'.format(i))]
                 i += 1
+        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
+            cmd += [
+                '--enclave',
+                LocalSubstitution(
+                    f"ros_specific_arguments['enclave']",
+                    description='node security enclave'
+                )
+            ]
         # Forward 'exec_name' as to ExecuteProcess constructor
         kwargs['name'] = exec_name
         super().__init__(cmd=cmd, **kwargs)
@@ -401,7 +409,7 @@ class Node(ExecuteProcess):
                 value = perform_substitutions(context, normalize_to_list_of_substitutions(v))
                 self.__expanded_remappings.append((key, value))
 
-    def _secure_self(self, context: LaunchContext):
+    def _secure_self(self, ros_specific_arguments: Dict[str, Union[str, List[str]]]):
         package_nodes = nodl.index.get_nodes_from_package(package_name=self.__package)
         node = next(node for node in package_nodes if node.executable == self.__node_executable)
 
@@ -410,6 +418,7 @@ class Node(ExecuteProcess):
             keystore_path=os.environ['ROS_SECURITY_KEYSTORE'], identity=node.name
         ):
             raise RuntimeError()
+        ros_specific_arguments['enclave'] = node.name
 
     def execute(self, context: LaunchContext) -> Optional[List[Action]]:
         """
@@ -418,11 +427,11 @@ class Node(ExecuteProcess):
         Delegated to :meth:`launch.actions.ExecuteProcess.execute`.
         """
         self._perform_substitutions(context)
-        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
-            self._secure_self(context)
         # Prepare the ros_specific_arguments list and add it to the context so that the
         # LocalSubstitution placeholders added to the the cmd can be expanded using the contents.
         ros_specific_arguments: Dict[str, Union[str, List[str]]] = {}
+        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
+            self._secure_self(ros_specific_arguments)
         if self.__node_name is not None:
             ros_specific_arguments['name'] = '__node:={}'.format(self.__expanded_node_name)
         if self.__expanded_node_namespace != '':
