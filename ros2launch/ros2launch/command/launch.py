@@ -16,7 +16,7 @@ import os
 
 from ament_index_python.packages import get_package_prefix
 from ament_index_python.packages import PackageNotFoundError
-from argcomplete.completers import FilesCompleter
+from argcomplete.completers import DirectoriesCompleter, FilesCompleter
 try:
     from argcomplete.completers import SuppressCompleter
 except ImportError:
@@ -30,6 +30,7 @@ from ros2launch.api import LaunchFileNameCompleter
 from ros2launch.api import MultipleLaunchFilesError
 from ros2launch.api import print_a_launch_file
 from ros2launch.api import print_arguments_of_launch_file
+from ros2launch.api import setup_security
 from ros2pkg.api import package_name_completer
 
 
@@ -62,7 +63,7 @@ def package_name_or_launch_file_completer(prefix, parsed_args, **kwargs):
 class LaunchCommand(CommandExtension):
     """Run a launch file."""
 
-    def add_arguments(self, parser, cli_name):
+    def add_arguments(self, parser: argparse.ArgumentParser, cli_name: str):
         """Add arguments to argparse."""
         parser.add_argument(
             '-d', '--debug', default=False, action='store_true',
@@ -94,6 +95,18 @@ class LaunchCommand(CommandExtension):
             nargs='*',
             help="Arguments to the launch file; '<name>:=<value>' (for duplicates, last one wins)")
         arg.completer = SuppressCompleterWorkaround()
+
+        group = parser.add_argument_group('Security')
+        group.add_argument(
+            '--secure',
+            default=False,
+            action='store_true',
+            help='Launch node with encryption, generating keys where necessary',
+        )
+        group.add_argument(
+            '--keystore',
+            help='Location of keystore, if it exists; otherwise location to create keystore',
+        ).completer = DirectoriesCompleter()
 
     def main(self, *, parser, args):
         """Entry point for CLI program."""
@@ -137,6 +150,14 @@ class LaunchCommand(CommandExtension):
         else:
             raise RuntimeError('unexpected mode')
         launch_arguments.extend(args.launch_arguments)
+
+        if args.secure:
+            if not args.keystore:
+                raise RuntimeError("'--secure' was specified without a keystore directory")
+            setup_security(
+                keystore_dir=args.keystore, package_name=args.package_name
+            )
+
         if args.show_all_subprocesses_output:
             os.environ['OVERRIDE_LAUNCH_PROCESS_OUTPUT'] = 'both'
         if args.print:

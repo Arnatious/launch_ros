@@ -16,9 +16,7 @@
 
 from collections import OrderedDict
 import os
-from typing import List
-from typing import Text
-from typing import Tuple
+from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from ament_index_python.packages import PackageNotFoundError
@@ -157,6 +155,15 @@ def launch_a_launch_file(*, launch_file_path, launch_file_arguments, debug=False
     launch_service.include_launch_description(launch_description)
     ret = launch_service.run()
     return ret
+
+
+def setup_security(*, keystore_dir: str, package_name: str):
+    keystore_path = Path(keystore_dir).resolve()
+    sros2.api._keystore.create_keystore(str(keystore_path))
+
+    os.environ['ROS_SECURITY_KEYSTORE'] = str(keystore_path)
+    os.environ['ROS_SECURITY_ENABLE'] = 'true'
+    os.environ['ROS_SECURITY_STRATEGY'] = 'Enforce'
 
 
 class LaunchFileNameCompleter:

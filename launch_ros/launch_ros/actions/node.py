@@ -51,8 +51,12 @@ from launch_ros.utilities import get_node_name_count
 from launch_ros.utilities import normalize_parameters
 from launch_ros.utilities import normalize_remap_rules
 
+import nodl.index
+
 from rclpy.validate_namespace import validate_namespace
 from rclpy.validate_node_name import validate_node_name
+
+import sros2.api._key
 
 import yaml
 
@@ -397,6 +401,16 @@ class Node(ExecuteProcess):
                 value = perform_substitutions(context, normalize_to_list_of_substitutions(v))
                 self.__expanded_remappings.append((key, value))
 
+    def _secure_self(self, context: LaunchContext):
+        package_nodes = nodl.index.get_nodes_from_package(package_name=self.__package)
+        node = next(node for node in package_nodes if node.executable == self.__node_executable)
+
+        node.name = self.node_name.replace('<node_name_unspecified>', node.name)
+        if not sros2.api._key.create_key(
+            keystore_path=os.environ['ROS_SECURITY_KEYSTORE'], identity=node.name
+        ):
+            raise RuntimeError()
+
     def execute(self, context: LaunchContext) -> Optional[List[Action]]:
         """
         Execute the action.
@@ -404,6 +418,8 @@ class Node(ExecuteProcess):
         Delegated to :meth:`launch.actions.ExecuteProcess.execute`.
         """
         self._perform_substitutions(context)
+        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
+            self._secure_self(context)
         # Prepare the ros_specific_arguments list and add it to the context so that the
         # LocalSubstitution placeholders added to the the cmd can be expanded using the contents.
         ros_specific_arguments: Dict[str, Union[str, List[str]]] = {}
