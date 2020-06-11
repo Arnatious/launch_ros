@@ -67,8 +67,12 @@ class LaunchCommand(CommandExtension):
     def add_arguments(self, parser: argparse.ArgumentParser, cli_name: str):
         """Add arguments to argparse."""
         parser.add_argument(
-            '-d', '--debug', default=False, action='store_true',
-            help='Put the launch system in debug mode, provides more verbose output.')
+            '-d',
+            '--debug',
+            default=False,
+            action='store_true',
+            help='Put the launch system in debug mode, provides more verbose output.',
+        )
         command_group = parser.add_mutually_exclusive_group()
         command_group.add_argument(
             '-p', '--print', '--print-description', default=False, action='store_true',

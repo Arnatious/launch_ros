@@ -208,13 +208,12 @@ class Node(ExecuteProcess):
                     "ros_specific_arguments['remaps'][{}]".format(i),
                     description='remapping {}'.format(i))]
                 i += 1
-        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
+        if os.environ.get('ROS_SECURITY_ENABLE') == 'true':
             cmd += [
                 '--enclave',
                 LocalSubstitution(
-                    f"ros_specific_arguments['enclave']",
-                    description='node security enclave'
-                )
+                    f"ros_specific_arguments['enclave']", description='node security enclave'
+                ),
             ]
         # Forward 'exec_name' as to ExecuteProcess constructor
         kwargs['name'] = exec_name
@@ -410,8 +409,9 @@ class Node(ExecuteProcess):
                 self.__expanded_remappings.append((key, value))
 
     def _secure_self(self, ros_specific_arguments: Dict[str, Union[str, List[str]]]):
-        package_nodes = nodl.index.get_nodes_from_package(package_name=self.__package)
-        node = next(node for node in package_nodes if node.executable == self.__node_executable)
+        node = nodl.get_node_by_executable(
+            package_name=self.__package, executable_name=self.__node_executable
+        )
 
         node.name = self.node_name.replace('<node_name_unspecified>', node.name)
         if not sros2.api._key.create_key(
@@ -430,7 +430,7 @@ class Node(ExecuteProcess):
         # Prepare the ros_specific_arguments list and add it to the context so that the
         # LocalSubstitution placeholders added to the the cmd can be expanded using the contents.
         ros_specific_arguments: Dict[str, Union[str, List[str]]] = {}
-        if os.environ['ROS_SECURITY_ENABLE'] == 'true':
+        if os.environ.get('ROS_SECURITY_ENABLE') == 'true':
             self._secure_self(ros_specific_arguments)
         if self.__node_name is not None:
             ros_specific_arguments['name'] = '__node:={}'.format(self.__expanded_node_name)
