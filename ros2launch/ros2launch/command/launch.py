@@ -105,16 +105,11 @@ class LaunchCommand(CommandExtension):
             help="Arguments to the launch file; '<name>:=<value>' (for duplicates, last one wins)")
         arg.completer = SuppressCompleterWorkaround()
 
-        group = parser.add_argument_group('Security')
-        group.add_argument(
+        parser.add_argument(
             '--secure',
-            default=False,
-            action='store_true',
-            help='Launch node with encryption, generating keys where necessary',
-        )
-        group.add_argument(
-            '--keystore',
-            help='Location of keystore, if it exists; otherwise location to create keystore',
+            metavar='keystore',
+            help=('Launch node with encryption using specified keystore dir.'
+                  'Will generate keys if necessary.'),
         ).completer = DirectoriesCompleter()
 
     def main(self, *, parser, args):
@@ -161,10 +156,8 @@ class LaunchCommand(CommandExtension):
         launch_arguments.extend(args.launch_arguments)
 
         if args.secure:
-            if not args.keystore:
-                raise RuntimeError("'--secure' was specified without a keystore directory")
             setup_security(
-                keystore_dir=args.keystore, package_name=args.package_name
+                keystore_dir=args.secure, package_name=args.package_name
             )
 
         if args.show_all_subprocesses_output:

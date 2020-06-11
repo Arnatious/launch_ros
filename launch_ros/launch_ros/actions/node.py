@@ -51,7 +51,7 @@ from launch_ros.utilities import get_node_name_count
 from launch_ros.utilities import normalize_parameters
 from launch_ros.utilities import normalize_remap_rules
 
-import nodl.index
+import nodl
 
 from rclpy.validate_namespace import validate_namespace
 from rclpy.validate_node_name import validate_node_name
