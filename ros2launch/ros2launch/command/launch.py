@@ -16,11 +16,7 @@ import os
 
 from ament_index_python.packages import get_package_prefix
 from ament_index_python.packages import PackageNotFoundError
-try:
-    from argcomplete.completers import FilesCompleter
-except ImportError:
-    # argcomplete is optional
-    pass
+from argcomplete.completers import DirectoriesCompleter, FilesCompleter
 try:
     from argcomplete.completers import SuppressCompleter
 except ImportError:
@@ -34,6 +30,7 @@ from ros2launch.api import LaunchFileNameCompleter
 from ros2launch.api import MultipleLaunchFilesError
 from ros2launch.api import print_a_launch_file
 from ros2launch.api import print_arguments_of_launch_file
+from ros2launch.api import setup_security
 from ros2pkg.api import package_name_completer
 
 
@@ -58,11 +55,7 @@ def package_name_or_launch_file_completer(prefix, parsed_args, **kwargs):
         return is_launch_file(path) or os.path.isdir(path)
 
     # Complete paths to launch files
-    try:
-        completions.extend(filter(is_launch_file_or_dir, FilesCompleter()(**pass_through_kwargs)))
-    except NameError:
-        # argcomplete is optional
-        pass
+    completions.extend(filter(is_launch_file_or_dir, FilesCompleter()(**pass_through_kwargs)))
 
     return completions
 
@@ -73,8 +66,12 @@ class LaunchCommand(CommandExtension):
     def add_arguments(self, parser, cli_name):
         """Add arguments to argparse."""
         parser.add_argument(
-            '-d', '--debug', default=False, action='store_true',
-            help='Put the launch system in debug mode, provides more verbose output.')
+            '-d',
+            '--debug',
+            default=False,
+            action='store_true',
+            help='Put the launch system in debug mode, provides more verbose output.',
+        )
         command_group = parser.add_mutually_exclusive_group()
         command_group.add_argument(
             '-p', '--print', '--print-description', default=False, action='store_true',
@@ -102,6 +99,13 @@ class LaunchCommand(CommandExtension):
             nargs='*',
             help="Arguments to the launch file; '<name>:=<value>' (for duplicates, last one wins)")
         arg.completer = SuppressCompleterWorkaround()
+
+        parser.add_argument(
+            '--secure',
+            metavar='keystore',
+            help=('Launch node with encryption using specified keystore dir.'
+                  'Will generate keys if necessary.'),
+        ).completer = DirectoriesCompleter()
 
     def main(self, *, parser, args):
         """Entry point for CLI program."""
@@ -145,6 +149,12 @@ class LaunchCommand(CommandExtension):
         else:
             raise RuntimeError('unexpected mode')
         launch_arguments.extend(args.launch_arguments)
+
+        if args.secure:
+            setup_security(
+                keystore_dir=args.secure, package_name=args.package_name
+            )
+
         if args.show_all_subprocesses_output:
             os.environ['OVERRIDE_LAUNCH_PROCESS_OUTPUT'] = 'both'
         if args.print:
