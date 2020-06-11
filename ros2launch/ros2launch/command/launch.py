@@ -56,7 +56,11 @@ def package_name_or_launch_file_completer(prefix, parsed_args, **kwargs):
         return is_launch_file(path) or os.path.isdir(path)
 
     # Complete paths to launch files
-    completions.extend(filter(is_launch_file_or_dir, FilesCompleter()(**pass_through_kwargs)))
+    try:
+        completions.extend(filter(is_launch_file_or_dir, FilesCompleter()(**pass_through_kwargs)))
+    except NameError:
+        # argcomplete is optional
+        pass
 
     return completions
 
